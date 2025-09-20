@@ -1,0 +1,79 @@
+.external-buttons-container {
+    display: flex;
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 100%;
+    pointer-events: none;
+    z-index: 5;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.external-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: white;
+    font-weight: bold;
+    pointer-events: auto;
+    transition: all 0.3s ease;
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+.external-button-left {
+    background: linear-gradient(90deg, #EF4444 0%, #DC2626 100%);
+    justify-content: flex-start;
+}
+
+.external-button-right {
+    background: linear-gradient(90deg, #3B82F6 0%, #2563EB 100%);
+    justify-content: flex-end;
+}
+
+.external-button.show {
+    opacity: 1;
+    width: 80px;
+}
+
+.external-button .swipe-icon {
+    font-size: 1.5rem;
+    transition: transform 0.3s ease;
+    margin: 0 15px;
+}
+
+.external-button.show .swipe-icon {
+    transform: scale(1.2);
+}
+
+.card-container {
+    position: relative;
+    margin-bottom: 10px;
+    border-radius: 0.75rem;
+}
+
+.swipeable-card {
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    touch-action: pan-y;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    z-index: 10;
+    background: inherit;
+}
+
+.swipeable-content {
+    position: relative;
+    z-index: 10;
+    background: inherit;
+    transition: all 0.3s ease;
+    border-radius: 0.75rem;
+}
+
+.swipeable-card.swiping .swipeable-content {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}

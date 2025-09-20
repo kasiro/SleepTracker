@@ -1,0 +1,3007 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Трекер сна</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React и Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Иконки -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        * {
+            font-family: "Inter", sans-serif;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                } to {
+                opacity: 1;
+                }
+            }
+        /* Стили для внешних кнопок */
+        .external-buttons-container {
+            display: flex;
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 100%;
+            pointer-events: none;
+            z-index: 5;
+            border-radius: 0.75rem;
+            overflow: hidden;
+        }
+        .external-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: white;
+            font-weight: bold;
+            pointer-events: auto;
+            transition: all 0.3s ease;
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+        .external-button-left {
+            background: linear-gradient(90deg, #EF4444 0%, #DC2626 100%);
+            justify-content: flex-start;
+        }
+        .external-button-right {
+            background: linear-gradient(90deg, #3B82F6 0%, #2563EB 100%);
+            justify-content: flex-end;
+        }
+        .external-button.show {
+            opacity: 1;
+            width: 80px;
+        }
+        .external-button .swipe-icon {
+            font-size: 1.5rem;
+            transition: transform 0.3s ease;
+            margin: 0 15px;
+        }
+        .external-button.show .swipe-icon {
+            transform: scale(1.2);
+        }
+        .card-container {
+            position: relative;
+            margin-bottom: 10px;
+            border-radius: 0.75rem;
+        }
+        .swipeable-card {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            touch-action: pan-y;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            z-index: 10;
+            background: inherit;
+        }
+        .swipeable-content {
+            position: relative;
+            z-index: 10;
+            background: inherit;
+            transition: all 0.3s ease;
+            border-radius: 0.75rem;
+        }
+        .swipeable-card.swiping .swipeable-content {
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+        /* Исправленное модальное окно */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        .modal-content {
+            width: 100%;
+            max-width: 24rem;
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin: auto;
+            box-sizing: border-box;
+            max-height: calc(100vh - 2rem);
+            overflow-y: auto;
+            position: relative;
+        }
+        .dark .modal-content {
+            background: #2D2D2D;
+        }
+        
+        /* Новые стили для улучшенного свайпа */
+        .swipe-action-left, .swipe-action-right {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            z-index: 1;
+            transition: all 0.3s ease;
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
+        }
+        
+        .swipe-action-left {
+            left: 0;
+            background: linear-gradient(90deg, #3B82F6 0%, #2563EB 100%);
+            justify-content: flex-start;
+            border-top-left-radius: 0.75rem;
+            border-bottom-left-radius: 0.75rem;
+        }
+        
+        .swipe-action-right {
+            right: 0;
+            background: linear-gradient(90deg, #EF4444 0%, #DC2626 100%);
+            justify-content: flex-end;
+            border-top-right-radius: 0.75rem;
+            border-bottom-right-radius: 0.75rem;
+        }
+        
+        .swipe-action-left.visible, .swipe-action-right.visible {
+            opacity: 1;
+            width: 150px;
+        }
+        
+        .swipe-action-icon {
+            font-size: 1.5rem;
+            margin: 0 20px;
+        }
+        
+        .swipeable-card-content {
+            position: relative;
+            z-index: 2;
+            background: inherit;
+            transition: transform 0.3s ease;
+            border-radius: 0.75rem;
+        }
+        
+        /* Стили для док-бара */
+        .dock-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #E5E7EB;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 0;
+            z-index: 50;
+            box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dark .dock-bar {
+            background: #2D2D2D;
+            border-top: 1px solid #4A4A4A;
+        }
+        
+        .dock-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 16px;
+            border-radius: 12px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .dock-item.active {
+            background-color: #EEF2FF;
+        }
+        
+        .dark .dock-item.active {
+            background-color: #3730A3;
+        }
+        
+        .dock-icon {
+            font-size: 1.25rem;
+            margin-bottom: 4px;
+            transition: color 0.2s ease;
+        }
+        
+        .dock-item.active .dock-icon {
+            color: #4F46E5;
+        }
+        
+        .dark .dock-item.active .dock-icon {
+            color: #fff;
+        }
+        
+        .dock-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .main-content {
+            padding-bottom: 50px; /* Чтобы контент не перекрывался док-баром */
+        }
+        
+        /* Стили для переключателя темы */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #4F46E5;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .slider.round {
+            border-radius: 34px;
+        }
+        
+        .slider.round:before {
+            border-radius: 50%;
+        }
+        .period-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .period-button {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        
+        .dark .period-button {
+            background: #2D2D2D;
+            border-color: #4A4A4A;
+            color: white;
+        }
+        
+        .period-button.active {
+            background: #4F46E5;
+            color: white;
+            border-color: #4F46E5;
+        }
+        
+        .date-navigation {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+        
+        .nav-button {
+            padding: 6px 12px;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .dark .nav-button {
+            background: #2D2D2D;
+            border-color: #4A4A4A;
+            color: white;
+        }
+        
+        .current-period {
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+        
+        .stat-card {
+            background: #F8FAFC;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .dark .stat-card {
+            background: #2D2D2D;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4F46E5;
+            margin-bottom: 4px;
+        }
+        
+        .dark .stat-value {
+            color: #818CF8;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6B7280;
+        }
+        
+        .dark .stat-label {
+            color: #9CA3AF;
+        }
+        .sleep-history-fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            z-index: 1000;
+            overflow-y: auto;
+            padding: 1rem;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .dark .sleep-history-fullscreen {
+            background: #1E1E1E;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        
+        .dark .history-header {
+            border-bottom-color: #4A4A4A;
+        }
+        
+        .calendar-container {
+            background: #F8FAFC;
+            border-radius: 1rem;
+            padding: 1rem;
+        }
+        
+        .dark .calendar-container {
+            background: #2D2D2D;
+        }
+        
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+        
+        .calendar-day {
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            color: #6B7280;
+        }
+        
+        .dark .calendar-day {
+            color: #9CA3AF;
+        }
+        
+        .calendar-date {
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .calendar-date:hover {
+            background: #E5E7EB;
+        }
+        
+        .dark .calendar-date:hover {
+            background: #4A4A4A;
+        }
+        
+        .calendar-date.active {
+            background: #4F46E5;
+            color: white;
+        }
+        
+        .calendar-date.has-record::after {
+            content: '';
+            position: absolute;
+            bottom: 0.25rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0.25rem;
+            height: 0.25rem;
+            background: #4F46E5;
+            border-radius: 50%;
+        }
+        
+        .dark .calendar-date.has-record::after {
+            background: #818CF8;
+        }
+        
+        .calendar-date.other-month {
+            color: #9CA3AF;
+            opacity: 0.5;
+        }
+        
+        .sleep-details {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .dark .sleep-details {
+            background: #2D2D2D;
+        }
+        
+        .sleep-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: #F1F5F9;
+            border-radius: 0.75rem;
+        }
+        
+        .dark .stat-item {
+            background: #3A3A3A;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #4F46E5;
+            margin-bottom: 0.25rem;
+        }
+        
+        .dark .stat-value {
+            color: #818CF8;
+        }
+        
+        .stat-label {
+            font-size: 0.875rem;
+            color: #6B7280;
+        }
+        
+        .dark .stat-label {
+            color: #9CA3AF;
+        }
+        
+        .sleep-timeline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+            border-bottom: 1px solid #E5E7EB;
+        }
+        
+        .dark .sleep-timeline {
+            border-bottom-color: #4A4A4A;
+        }
+        
+        .timeline-time {
+            font-weight: 600;
+            color: #4F46E5;
+        }
+        
+        .dark .timeline-time {
+            color: #818CF8;
+        }
+        
+        .timeline-duration {
+            font-weight: 500;
+        }
+        
+        .close-fullscreen {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+        .custom-select-container {
+          position: relative;
+          width: 100%;
+        }
+
+        .custom-select-button {
+          width: 100%;
+          padding: 0.5rem 1rem;
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 0.5rem;
+          text-align: left;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .dark .custom-select-button {
+          background: #2D2D2D;
+          border-color: #4A4A4A;
+          color: white;
+        }
+
+        .custom-select-options {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: white;
+          border: 1px solid #E5E7EB;
+          border-radius: 0.5rem;
+          margin-top: 0.25rem;
+          max-height: 200px;
+          overflow-y: auto;
+          z-index: 100;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark .custom-select-options {
+          background: #2D2D2D;
+          border-color: #4A4A4A;
+        }
+
+        .custom-select-option {
+          padding: 0.5rem 1rem;
+          cursor: pointer;
+          transition: background-color 0.2s;
+        }
+
+        .custom-select-option:hover {
+          background-color: #F3F4F6;
+        }
+
+        .dark .custom-select-option:hover {
+          background-color: #4A4A4A;
+        }
+
+        .custom-select-option.selected {
+          background-color: #EEF2FF;
+          color: #4F46E5;
+        }
+
+        .dark .custom-select-option.selected {
+          background-color: #3730A3;
+          color: white;
+        }
+        .file-drop-area {
+            border: 2px dashed #3B82F6;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-drop-area:hover {
+            border-color: #2563EB;
+            background-color: #F8FAFC;
+        }
+
+        .dark .file-drop-area {
+            border-color: #6366F1;
+        }
+
+        .dark .file-drop-area:hover {
+            border-color: #818CF8;
+            background-color: #2D2D2D;
+        }
+
+        /* Анимации для кнопок */
+        .btn-hover-effect {
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn-hover-effect:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .dark .btn-hover-effect:hover {
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            900: '#121212',
+                            800: '#1E1E1E',
+                            700: '#2D2D2D',
+                            600: '#3A3A3A',
+                            500: '#4A4A4A',
+                        },
+                        light: {
+                            900: '#FFFFFF',
+                            800: '#F8FAFC',
+                            700: '#F1F5F9',
+                            600: '#E2E8F0',
+                            500: '#CBD5E1',
+                        },
+                        primary: {
+                            50: '#EEF2FF',
+                            100: '#E0E7FF',
+                            200: '#C7D2FE',
+                            300: '#A5B4FC',
+                            400: '#818CF8',
+                            500: '#6366F1',
+                            DEFAULT: '#4F46E5',
+                            600: '#4F46E5',
+                            700: '#4338CA',
+                            800: '#3730A3',
+                            900: '#312E81',
+                        },
+                        green: {
+                            50: '#ECFDF5',
+                            100: '#D1FAE5',
+                            200: '#A7F3D0',
+                            300: '#6EE7B7',
+                            400: '#34D399',
+                            500: '#10B981',
+                            DEFAULT: '#059669',
+                            600: '#059669',
+                            700: '#047857',
+                            800: '#065F46',
+                            900: '#064E3B',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-light-800 min-h-screen py-8 px-4 dark:bg-dark-900">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+        
+        const Alert = ({ message, type, onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    onClose();
+                }, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+
+            const bgColor = type === 'error' ? (
+                'bg-red-100 border-red-400 text-red-700'
+            ) : 'bg-yellow-100 border-yellow-400 text-yellow-700';
+
+            return (
+                <div className={`${bgColor} border px-5 py-4 rounded-lg relative mb-4 transition-opacity duration-300 fade-in`}>
+                    <span className="block sm:inline">{message}</span>
+                    <button
+                        onClick={onClose}
+                        className="absolute top-0 right-0 px-2 py-[1.5px]"
+                    >
+                        <i className="fas fa-times"></i>
+                    </button>
+                </div>
+            );
+        };
+        
+        // ПРАВИЛЬНЫЙ компонент для карточки с поддержкой свайпа
+        const SwipeableCard = ({ children, onSwipeLeft, onSwipeRight, className = "" }) => {
+            const touchStartX = useRef(0);
+            const touchStartY = useRef(0);
+            const touchEndX = useRef(0);
+            const cardRef = useRef(null);
+            const [swipeOffset, setSwipeOffset] = useState(0);
+            const [isSwiping, setIsSwiping] = useState(false);
+            const [swipeDirection, setSwipeDirection] = useState(null);
+            const SWIPE_THRESHOLD = 60;
+            const MAX_SWIPE_DISTANCE = 120;
+            const isScrolling = useRef(false);
+
+            const handleTouchStart = (e) => {
+                touchStartX.current = e.touches[0].clientX;
+                touchStartY.current = e.touches[0].clientY;
+                setIsSwiping(true);
+                isScrolling.current = false;
+            };
+
+            const handleTouchMove = (e) => {
+                if (!touchStartX.current) return;
+                
+                touchEndX.current = e.touches[0].clientX;
+                const touchEndY = e.touches[0].clientY;
+                
+                const diffX = touchEndX.current - touchStartX.current;
+                const diffY = touchEndY - touchStartY.current;
+                
+                // Определяем, является ли движение скроллом
+                if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 10) {
+                    isScrolling.current = true;
+                    return;
+                }
+                
+                if (isScrolling.current) return;
+                
+                // Определяем направление свайпа
+                if (Math.abs(diffX) > 10) {
+                    setSwipeDirection(diffX > 0 ? 'right' : 'left');
+                }
+                
+                // Ограничиваем максимальное смещение
+                const newOffset = Math.abs(diffX) > MAX_SWIPE_DISTANCE 
+                    ? (diffX > 0 ? MAX_SWIPE_DISTANCE : -MAX_SWIPE_DISTANCE) 
+                    : diffX;
+                
+                setSwipeOffset(newOffset);
+                
+                // Убираем preventDefault() чтобы избежать ошибки с пассивными событиями
+                // Вместо этого используем CSS свойство touch-action
+            };
+
+            const handleTouchEnd = () => {
+                setIsSwiping(false);
+                
+                if (isScrolling.current) {
+                    setSwipeOffset(0);
+                    setSwipeDirection(null);
+                    touchStartX.current = 0;
+                    return;
+                }
+                
+                if (Math.abs(swipeOffset) > SWIPE_THRESHOLD) {
+                    if (swipeOffset > 0) {
+                        onSwipeRight && onSwipeRight();
+                    } else {
+                        onSwipeLeft && onSwipeLeft();
+                    }
+                }
+                
+                setSwipeOffset(0);
+                setSwipeDirection(null);
+                touchStartX.current = 0;
+            };
+
+            return (
+                <div className="card-container">
+                    <div className={`swipe-action-left ${swipeDirection === 'right' ? 'visible' : ''}`}>
+                        <i className="fas fa-edit swipe-action-icon"></i>
+                    </div>
+                    <div className={`swipe-action-right ${swipeDirection === 'left' ? 'visible' : ''}`}>
+                        <i className="fas fa-trash swipe-action-icon"></i>
+                    </div>
+                    
+                    <div 
+                        ref={cardRef}
+                        className={`swipeable-card ${className}`}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        style={{ 
+                            transform: `translateX(${swipeOffset}px)`,
+                            transition: isSwiping ? 'none' : 'transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28)',
+                            touchAction: 'pan-y' // Добавляем CSS свойство для контроля жестов
+                        }}
+                    >
+                        <div className="swipeable-card-content">
+                            {children}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Компонент для переключателя темы
+        const ThemeToggle = ({ darkMode, onToggle }) => {
+            return (
+                <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center">
+                        <i className="fas fa-moon text-gray-700 dark:text-gray-300 mr-3"></i>
+                        <span className="text-gray-700 dark:text-gray-300">Темная тема</span>
+                    </div>
+                    <label className="toggle-switch">
+                        <input 
+                            type="checkbox" 
+                            checked={darkMode} 
+                            onChange={onToggle} 
+                        />
+                        <span className="slider round"></span>
+                    </label>
+                </div>
+            );
+        };
+
+        // Компонент для вкладки статистики
+        const StatsTab = ({ sleepHistory }) => {
+            const [selectedPeriod, setSelectedPeriod] = useState('all'); // all, week, month
+            const [currentWeek, setCurrentWeek] = useState(0);
+            const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+            const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+            const [showRegularityHint, setShowRegularityHint] = useState(false);
+            const [showSleepTimesHint, setShowSleepTimesHint] = useState(false);
+
+            // Функции для фильтрации записей по периоду
+            const getWeekRecords = (weekOffset = 0) => {
+                const now = new Date();
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - now.getDay() + (weekOffset * 7));
+                startOfWeek.setHours(0, 0, 0, 0);
+                
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                endOfWeek.setHours(23, 59, 59, 999);
+
+                return sleepHistory.filter(record => {
+                    const recordDate = new Date(record.sleepTime);
+                    return recordDate >= startOfWeek && recordDate <= endOfWeek;
+                });
+            };
+            
+            const calculateWeekdayRegularity = (records) => {
+                if (records.length === 0) return Array(7).fill(0);
+                
+                const weekdayCounts = Array(7).fill(0);
+                const weekdayTotal = Array(7).fill(0);
+                
+                records.forEach(record => {
+                    const sleepDate = new Date(record.sleepTime);
+                    const weekday = sleepDate.getDay();
+                    const adjustedWeekday = weekday === 0 ? 6 : weekday - 1;
+                    
+                    weekdayTotal[adjustedWeekday]++;
+                    
+                    const hours = record.durationInMinutes / 60;
+                    if (hours >= 6 && hours <= 9) {
+                        weekdayCounts[adjustedWeekday]++;
+                    }
+                });
+                
+                return weekdayTotal.map((total, index) => {
+                    if (total === 0) return 0;
+                    return Math.round((weekdayCounts[index] / total) * 100);
+                });
+            };
+            
+            const calculateMostCommonSleepTime = (records) => {
+                if (records.length === 0) return { start: '--:--', end: '--:--' };
+                
+                const timeSlots = {};
+                const wakeTimeSlots = {};
+                
+                records.forEach(record => {
+                    const sleepTime = new Date(record.sleepTime);
+                    const wakeTime = new Date(record.wakeTime);
+                    
+                    const sleepHours = sleepTime.getHours();
+                    const sleepMinutes = sleepTime.getMinutes() >= 30 ? 30 : 0;
+                    const sleepKey = `${sleepHours}:${sleepMinutes === 0 ? '00' : '30'}`;
+                    
+                    const wakeHours = wakeTime.getHours();
+                    const wakeMinutes = wakeTime.getMinutes() >= 30 ? 30 : 0;
+                    const wakeKey = `${wakeHours}:${wakeMinutes === 0 ? '00' : '30'}`;
+                    
+                    timeSlots[sleepKey] = (timeSlots[sleepKey] || 0) + 1;
+                    wakeTimeSlots[wakeKey] = (wakeTimeSlots[wakeKey] || 0) + 1;
+                });
+                
+                const mostCommonStart = Object.keys(timeSlots).reduce((a, b) => 
+                    timeSlots[a] > timeSlots[b] ? a : b, Object.keys(timeSlots)[0]);
+                
+                const mostCommonEnd = Object.keys(wakeTimeSlots).reduce((a, b) => 
+                    wakeTimeSlots[a] > wakeTimeSlots[b] ? a : b, Object.keys(wakeTimeSlots)[0]);
+                
+                return {
+                    start: mostCommonStart,
+                    end: mostCommonEnd
+                };
+            };
+            
+            const calculateAverageSleepTimesByWeekday = (records) => {
+                if (records.length === 0) return {
+                    sleepTimes: Array(7).fill('--:--'),
+                    wakeTimes: Array(7).fill('--:--')
+                };
+
+                const weekdaySleepMinutes = Array(7).fill(0).map(() => []);
+                const weekdayWakeMinutes = Array(7).fill(0).map(() => []);
+                
+                records.forEach(record => {
+                    const sleepTime = new Date(record.sleepTime);
+                    const wakeTime = new Date(record.wakeTime);
+                    const weekday = sleepTime.getDay();
+                    const adjustedWeekday = weekday === 0 ? 6 : weekday - 1;
+                    
+                    // Преобразуем время в минуты от начала дня
+                    const sleepMinutes = sleepTime.getHours() * 60 + sleepTime.getMinutes();
+                    const wakeMinutes = wakeTime.getHours() * 60 + wakeTime.getMinutes();
+                    
+                    weekdaySleepMinutes[adjustedWeekday].push(sleepMinutes);
+                    weekdayWakeMinutes[adjustedWeekday].push(wakeMinutes);
+                });
+
+                // Вычисляем среднее время для каждого дня
+                const averageSleepTimes = weekdaySleepMinutes.map(minutesArray => {
+                    if (minutesArray.length === 0) return '--:--';
+                    const avgMinutes = Math.round(minutesArray.reduce((sum, min) => sum + min, 0) / minutesArray.length);
+                    const hours = Math.floor(avgMinutes / 60);
+                    const minutes = avgMinutes % 60;
+                    return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                });
+
+                const averageWakeTimes = weekdayWakeMinutes.map(minutesArray => {
+                    if (minutesArray.length === 0) return '--:--';
+                    const avgMinutes = Math.round(minutesArray.reduce((sum, min) => sum + min, 0) / minutesArray.length);
+                    const hours = Math.floor(avgMinutes / 60);
+                    const minutes = avgMinutes % 60;
+                    return `${hours}:${minutes.toString().padStart(2, '0')}`;
+                });
+
+                return {
+                    sleepTimes: averageSleepTimes,
+                    wakeTimes: averageWakeTimes
+                };
+            };
+
+            const getMonthRecords = (month, year) => {
+                const startOfMonth = new Date(year, month, 1);
+                const endOfMonth = new Date(year, month + 1, 0);
+                endOfMonth.setHours(23, 59, 59, 999);
+
+                return sleepHistory.filter(record => {
+                    const recordDate = new Date(record.sleepTime);
+                    return recordDate >= startOfMonth && recordDate <= endOfMonth;
+                });
+            };
+
+            // Получение записей для выбранного периода
+            const getFilteredRecords = () => {
+                switch (selectedPeriod) {
+                    case 'week':
+                        return getWeekRecords(currentWeek);
+                    case 'month':
+                        return getMonthRecords(currentMonth, currentYear);
+                    default:
+                        return sleepHistory;
+                }
+            };
+
+            const filteredRecords = getFilteredRecords();
+
+            // Функции для расчета статистики
+            const calculateAverageDuration = (records) => {
+                if (records.length === 0) return { hours: 0, minutes: 0, text: '0 ч 0 мин' };
+                
+                const totalMinutes = records.reduce((sum, record) => {
+                    return sum + record.durationInMinutes;
+                }, 0);
+                
+                const avgMinutes = Math.round(totalMinutes / records.length);
+                const hours = Math.floor(avgMinutes / 60);
+                const minutes = avgMinutes % 60;
+                
+                return { hours, minutes, text: `${hours} ч ${minutes} мин` };
+            };
+
+            const calculateRegularity = (records) => {
+                if (records.length < 2) return 0;
+                
+                const normalSleepDays = records.filter(record => {
+                    const hours = record.durationInMinutes / 60;
+                    return hours >= 6 && hours <= 9;
+                }).length;
+                
+                return Math.round((normalSleepDays / records.length) * 100);
+            };
+
+            const calculateTotalSleep = (records) => {
+                const totalMinutes = records.reduce((sum, record) => {
+                    return sum + record.durationInMinutes;
+                }, 0);
+                
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                return { hours, minutes, text: `${hours} ч ${minutes} мин` };
+            };
+
+            const calculateBestDay = (records) => {
+                if (records.length === 0) return { duration: '0 ч 0 мин', date: 'Нет данных' };
+                
+                const bestRecord = records.reduce((best, record) => {
+                    return record.durationInMinutes > best.durationInMinutes ? record : best;
+                }, { durationInMinutes: 0 });
+                
+                return {
+                    duration: bestRecord.duration,
+                    date: bestRecord.dateLabel
+                };
+            };
+
+            const averageDuration = calculateAverageDuration(filteredRecords);
+            const regularity = calculateRegularity(filteredRecords);
+            const totalSleep = calculateTotalSleep(filteredRecords);
+            const bestDay = calculateBestDay(filteredRecords);
+
+            // Функции для навигации по периодам
+            const navigateWeek = (direction) => {
+                setCurrentWeek(prev => prev + direction);
+            };
+
+            const navigateMonth = (direction) => {
+                setCurrentMonth(prev => {
+                    let newMonth = prev + direction;
+                    let newYear = currentYear;
+                    
+                    if (newMonth < 0) {
+                        newMonth = 11;
+                        newYear--;
+                    } else if (newMonth > 11) {
+                        newMonth = 0;
+                        newYear++;
+                    }
+                    
+                    setCurrentYear(newYear);
+                    return newMonth;
+                });
+            };
+
+            // Форматирование отображаемых периодов
+            const getWeekDisplay = () => {
+                const now = new Date();
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - now.getDay() + (currentWeek * 7));
+                
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                
+                return `${startOfWeek.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} - ${endOfWeek.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`;
+            };
+
+            const getMonthDisplay = () => {
+                return new Date(currentYear, currentMonth).toLocaleDateString('ru-RU', { 
+                    month: 'long', 
+                    year: 'numeric' 
+                });
+            };
+
+            const weekdayRegularity = calculateWeekdayRegularity(filteredRecords);
+            const commonSleepTimes = calculateMostCommonSleepTime(filteredRecords);
+            const averageTimesByWeekday = calculateAverageSleepTimesByWeekday(filteredRecords);
+            
+            const CircularProgress = ({ percentage, size = 40, strokeWidth = 4 }) => {
+                const radius = (size - strokeWidth) / 2;
+                const circumference = radius * 2 * Math.PI;
+                const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+                return (
+                    <div className="relative" style={{ width: size, height: size }}>
+                        <svg className="transform -rotate-90" width={size} height={size}>
+                            <circle
+                                cx={size / 2}
+                                cy={size / 2}
+                                r={radius}
+                                stroke="#E5E7EB"
+                                strokeWidth={strokeWidth}
+                                fill="transparent"
+                            />
+                            <circle
+                                cx={size / 2}
+                                cy={size / 2}
+                                r={radius}
+                                stroke="#4F46E5"
+                                strokeWidth={strokeWidth}
+                                fill="transparent"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={strokeDashoffset}
+                                strokeLinecap="round"
+                                className="transition-all duration-300"
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                                {percentage}%
+                            </span>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 mb-4 fade-in">
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6">
+                        <i className="fas fa-chart-line text-primary mr-2"></i>Статистика сна
+                    </h2>
+                    
+                    {/* Селектор периода */}
+                    <div className="period-selector">
+                        <button 
+                            className={`period-button ${selectedPeriod === 'all' ? 'active' : ''}`}
+                            onClick={() => setSelectedPeriod('all')}
+                        >
+                            Все время
+                        </button>
+                        <button 
+                            className={`period-button ${selectedPeriod === 'week' ? 'active' : ''}`}
+                            onClick={() => setSelectedPeriod('week')}
+                        >
+                            Неделя
+                        </button>
+                        <button 
+                            className={`period-button ${selectedPeriod === 'month' ? 'active' : ''}`}
+                            onClick={() => setSelectedPeriod('month')}
+                        >
+                            Месяц
+                        </button>
+                    </div>
+                    
+                    {/* Навигация по периодам */}
+                    {(selectedPeriod === 'week' || selectedPeriod === 'month') && (
+                        <div className="date-navigation">
+                            <button 
+                                className="nav-button"
+                                onClick={() => selectedPeriod === 'week' ? navigateWeek(-1) : navigateMonth(-1)}
+                            >
+                                <i className="fas fa-chevron-left"></i>
+                            </button>
+                            
+                            <span className="current-period dark:text-white">
+                                {selectedPeriod === 'week' ? getWeekDisplay() : getMonthDisplay()}
+                            </span>
+                            
+                            <button 
+                                className="nav-button"
+                                onClick={() => selectedPeriod === 'week' ? navigateWeek(1) : navigateMonth(1)}
+                            >
+                                <i className="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    )}
+                    
+                    {/* Сетка статистики */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between bg-gray-50 dark:bg-dark-700 p-4 rounded-xl">
+                            <div className="flex-1">
+                                <div className="stat-value text-lg">{averageDuration.text}</div>
+                                <div className="stat-label text-sm">Средняя продолжительность</div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between bg-gray-50 dark:bg-dark-700 p-4 rounded-xl">
+                            <div className="flex-1">
+                                <div className="stat-label text-sm flex items-center">
+                                    Регулярность
+                                    <button 
+                                        onClick={() => setShowRegularityHint(!showRegularityHint)}
+                                        className="ml-1 text-gray-400 hover:text-gray-600"
+                                    >
+                                        <i className="fas fa-question-circle text-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <CircularProgress 
+                                percentage={regularity}
+                                size={50}
+                                strokeWidth={5}
+                            />
+                        </div>
+                        
+                        <div className="flex items-center justify-between bg-gray-50 dark:bg-dark-700 p-4 rounded-xl">
+                            <div className="flex-1">
+                                <div className="stat-value text-lg">{totalSleep.text}</div>
+                                <div className="stat-label text-sm">Общее время сна</div>
+                            </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between bg-gray-50 dark:bg-dark-700 p-4 rounded-xl">
+                            <div className="flex-1">
+                                <div className="stat-value text-lg">{bestDay.duration}</div>
+                                <div className="stat-label text-sm">Лучший день: {bestDay.date}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Подсказка о регулярности */}
+                    {showRegularityHint && (
+                        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                            <h3 className="font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                                <i className="fas fa-info-circle mr-2"></i>Что такое регулярность сна?
+                            </h3>
+                            <p className="text-blue-700 dark:text-blue-300 text-sm">
+                                Регулярность характеризует привычки отхода ко сну и пробуждения за определенный период. 
+                                Засыпание и пробуждение в одно и то же время способствует улучшению сна.
+                            </p>
+                            <p className="text-blue-700 dark:text-blue-300 text-sm mt-2">
+                                Для получения значения регулярности нужно использовать трекер в течение нескольких ночей подряд.
+                            </p>
+                            <button 
+                                onClick={() => setShowRegularityHint(false)}
+                                className="mt-2 text-blue-600 dark:text-blue-400 text-sm font-medium"
+                            >
+                                Понятно
+                            </button>
+                        </div>
+                    )}
+
+                    {/* Регулярность по дням недели */}
+                    {(filteredRecords.length > 0 && selectedPeriod === 'all' || selectedPeriod === 'month') && (
+                        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-dark-600">
+                            <h3 className="font-semibold text-gray-800 dark:text-gray-200 mb-4">
+                                Регулярность по дням недели
+                            </h3>
+                            <div className="space-y-3">
+                                {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day, index) => (
+                                    <div key={day} className="flex items-center">
+                                        <span className="w-8 text-sm text-gray-600 dark:text-gray-400">{day}</span>
+                                        <div className="flex-1 ml-2">
+                                            <div className="w-full bg-gray-200 dark:bg-dark-600 rounded-full h-2">
+                                                <div 
+                                                    className="bg-green-500 h-2 rounded-full" 
+                                                    style={{width: `${weekdayRegularity[index]}%`}}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                        <span className="w-10 text-right text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            {weekdayRegularity[index]}%
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Среднее время сна по дням недели */}
+                    {(filteredRecords.length > 0 && selectedPeriod === 'all' || selectedPeriod === 'month') && (
+                        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-dark-600">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                                    Среднее время по дням недели
+                                </h3>
+                                <button 
+                                    onClick={() => setShowSleepTimesHint(!showSleepTimesHint)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <i className="fas fa-question-circle text-sm"></i>
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map((day, index) => (
+                                    <div key={day} className="flex items-center justify-between">
+                                        <span className="w-8 text-sm text-gray-600 dark:text-gray-400">{day}</span>
+                                        <div className="flex-1 mx-2">
+                                            <div className="flex justify-between text-sm">
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    Сон: {averageTimesByWeekday.sleepTimes[index]}
+                                                </span>
+                                                <span className="text-gray-600 dark:text-gray-400">
+                                                    Пробуждение: {averageTimesByWeekday.wakeTimes[index]}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Подсказка о времени сна */}
+                    {showSleepTimesHint && (
+                        <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-700">
+                            <h3 className="font-semibold text-amber-800 dark:text-amber-300 mb-2">
+                                <i className="fas fa-info-circle mr-2"></i>Среднее время сна
+                            </h3>
+                            <p className="text-amber-700 dark:text-amber-300 text-sm">
+                                Показывает среднее время отхода ко сну и пробуждения для каждого дня недели.
+                                Рассчитывается на основе всех доступных записей за выбранный период.
+                            </p>
+                            <button 
+                                onClick={() => setShowSleepTimesHint(false)}
+                                className="mt-2 text-amber-600 dark:text-amber-400 text-sm font-medium"
+                            >
+                                Понятно
+                            </button>
+                        </div>
+                    )}
+                    
+                    {/* Дополнительная статистика */}
+                    <div className="pt-4 border-t border-gray-200 dark:border-dark-600 mt-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-gray-600 dark:text-gray-400">Записей в периоде</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{filteredRecords.length}</span>
+                        </div>
+                        
+                        {selectedPeriod !== 'all' && (
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-gray-600 dark:text-gray-400">Всего записей</span>
+                                <span className="font-bold text-gray-900 dark:text-white">{sleepHistory.length}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Компонент для вкладки настроек
+        const SettingsTab = ({ darkMode, onToggleDarkMode, sleepHistory, onImportHistory }) => {
+            const [showImportExport, setShowImportExport] = useState(false);
+            const [importData, setImportData] = useState('');
+            const [importStatus, setImportStatus] = useState(null);
+
+            const exportHistory = () => {
+                const dataToExport = sleepHistory.map(record => ({
+                    ...record,
+                    sleepTime: record.sleepTime.toISOString(),
+                    wakeTime: record.wakeTime.toISOString()
+                }));
+                
+                const dataStr = JSON.stringify(dataToExport, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                
+                const exportFileDefaultName = `sleep_history_${new Date().toISOString().split('T')[0]}.json`;
+                
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+            };
+
+            const handleImport = () => {
+                try {
+                    if (!importData.trim()) {
+                        setImportStatus({ type: 'error', message: 'Введите данные для импорта' });
+                        return;
+                    }
+
+                    const parsedData = JSON.parse(importData);
+                    
+                    // Валидация данных
+                    if (!Array.isArray(parsedData)) {
+                        setImportStatus({ type: 'error', message: 'Неверный формат данных. Ожидается массив записей.' });
+                        return;
+                    }
+
+                    // Преобразование строк в даты
+                    const importedHistory = parsedData.map(record => ({
+                        ...record,
+                        sleepTime: new Date(record.sleepTime),
+                        wakeTime: new Date(record.wakeTime)
+                    }));
+
+                    // Проверка валидности дат
+                    const invalidRecords = importedHistory.filter(record => 
+                        isNaN(record.sleepTime.getTime()) || isNaN(record.wakeTime.getTime())
+                    );
+
+                    if (invalidRecords.length > 0) {
+                        setImportStatus({ type: 'error', message: 'Обнаружены невалидные даты в импортируемых данных' });
+                        return;
+                    }
+
+                    onImportHistory(importedHistory);
+                    setImportStatus({ type: 'success', message: `Успешно импортировано ${importedHistory.length} записей` });
+                    setImportData('');
+                    
+                    // Автоматически скрыть сообщение через 3 секунды
+                    setTimeout(() => setImportStatus(null), 3000);
+                    
+                } catch (error) {
+                    setImportStatus({ type: 'error', message: `Ошибка импорта: ${error.message}` });
+                }
+            };
+
+            const handleFileSelect = (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        setImportData(e.target.result);
+                        setImportStatus({ type: 'info', message: 'Файл загружен. Нажмите "Импорт" для подтверждения' });
+                    };
+                    reader.onerror = () => {
+                        setImportStatus({ type: 'error', message: 'Ошибка чтения файла' });
+                    };
+                    reader.readAsText(file);
+                }
+            };
+
+            return (
+                <>
+                    {/* Блок настроек */}
+                    <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 mb-4 fade-in">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6">
+                            <i className="fas fa-cog text-primary mr-2"></i>Настройки
+                        </h2>
+                        
+                        <div className="space-y-6">
+                            <ThemeToggle darkMode={darkMode} onToggle={onToggleDarkMode} />
+                        </div>
+                    </div>
+
+                    {/* Отдельный блок импорта/экспорта */}
+                    <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 mb-4 fade-in">
+                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6">
+                            <i className="fas fa-database text-primary mr-2"></i>Управление данными
+                        </h2>
+                        
+                        <div>
+                            {/* Экспорт */}
+                            <div className="mb-6">
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-gray-700 dark:text-gray-300 font-medium">
+                                        <i className="fas fa-download text-blue-400 mr-2"></i>
+                                        Экспорт истории сна
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                                    Сохраните все ваши записи о сне в файл для резервного копирования
+                                </p>
+                                <button
+                                    onClick={exportHistory}
+                                    disabled={sleepHistory.length === 0}
+                                    className={`w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center ${
+                                        sleepHistory.length === 0 
+                                            ? 'bg-gray-300 dark:bg-dark-500 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                            : 'bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-blue-200 dark:hover:shadow-blue-900/30'
+                                    }`}
+                                >
+                                    <i className="fas fa-file-export mr-2"></i>
+                                    Экспорт ({sleepHistory.length} записей)
+                                </button>
+                            </div>
+                            
+                            {/* Разделитель */}
+                            <div className="border-t border-blue-200 dark:border-dark-500 mb-6"></div>
+                            
+                            {/* Импорт */}
+                            <div>
+                                <div className="flex items-center justify-between mb-3">
+                                    <span className="text-gray-700 dark:text-gray-300 font-medium">
+                                        <i className="fas fa-upload text-green-400 mr-2"></i>
+                                        Импорт истории сна
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                    Загрузите ранее сохраненные данные о сне из файла
+                                </p>
+                                
+                                {/* Выбор файла */}
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                        Выберите файл для импорта
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept=".json"
+                                            onChange={handleFileSelect}
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                            id="importFile"
+                                        />
+                                        <div className="bg-white dark:bg-dark-700 border-2 border-dashed border-blue-300 dark:border-blue-600 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 dark:hover:border-blue-500 transition-colors">
+                                            <i className="fas fa-cloud-upload-alt text-blue-400 text-2xl mb-2"></i>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">
+                                                Нажмите для выбора файла или перетащите его сюда
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                {/* Кнопка импорта */}
+                                <button
+                                    onClick={handleImport}
+                                    disabled={!importData.trim()}
+                                    className={`w-full py-3 px-4 rounded-xl font-medium transition-all duration-200 flex items-center justify-center ${
+                                        !importData.trim()
+                                            ? 'bg-gray-300 dark:bg-dark-500 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                                            : 'bg-green-500 hover:bg-green-600 text-white shadow-lg hover:shadow-green-200 dark:hover:shadow-green-900/30'
+                                    }`}
+                                >
+                                    <i className="fas fa-upload mr-2"></i>
+                                    Импортировать данные
+                                </button>
+                                
+                                {/* Статус импорта */}
+                                {importStatus && (
+                                    <div className={`mt-4 p-3 rounded-lg text-sm flex items-center ${
+                                        importStatus.type === 'error' 
+                                            ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700' 
+                                            : importStatus.type === 'success'
+                                            ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-700'
+                                            : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700'
+                                    }`}>
+                                        <i className={`fas ${
+                                            importStatus.type === 'error' ? 'fa-exclamation-circle' :
+                                            importStatus.type === 'success' ? 'fa-check-circle' : 'fa-info-circle'
+                                        } mr-2`}></i>
+                                        {importStatus.message}
+                                    </div>
+                                )}
+                                
+                                {/* Важное предупреждение */}
+                                <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-600">
+                                    <div className="flex items-start mb-1">
+                                        <i className="fas fa-exclamation-triangle text-amber-500 mt-0.5 mr-2"></i>
+                                        <span className="font-medium text-amber-800 dark:text-amber-300 text-sm">
+                                            Важная информация
+                                        </span>
+                                    </div>
+                                    <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                                        <li>• Импорт полностью заменит текущую историю сна</li>
+                                        <li>• Используйте только файлы, экспортированные из этого приложения</li>
+                                        <li>• Рекомендуется сделать резервную копию перед импортом</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            );
+        };
+        
+        const CustomSelect = ({ options, value, onChange, placeholder = "Выберите..." }) => {
+          const [isOpen, setIsOpen] = useState(false);
+          const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+          const selectRef = useRef(null);
+          const optionsRef = useRef(null);
+
+          const handleSelect = (optionValue) => {
+            onChange(optionValue);
+            setIsOpen(false);
+          };
+
+          const updatePosition = () => {
+            if (selectRef.current) {
+              const rect = selectRef.current.getBoundingClientRect();
+              setPosition({
+                top: rect.bottom + window.scrollY,
+                left: rect.left + window.scrollX,
+                width: rect.width
+              });
+            }
+          };
+
+          const handleClickOutside = (event) => {
+            if (selectRef.current && !selectRef.current.contains(event.target) &&
+                optionsRef.current && !optionsRef.current.contains(event.target)) {
+              setIsOpen(false);
+            }
+          };
+
+          useEffect(() => {
+            if (isOpen) {
+              updatePosition();
+              window.addEventListener('resize', updatePosition);
+            }
+            return () => {
+              window.removeEventListener('resize', updatePosition);
+            };
+          }, [isOpen]);
+
+          useEffect(() => {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => {
+              document.removeEventListener('mousedown', handleClickOutside);
+            };
+          }, []);
+
+          const selectedOption = options.find(opt => opt.value === value);
+
+          return (
+            <>
+              <div className="relative" ref={selectRef}>
+                <button
+                  type="button"
+                  className="w-full px-4 py-2 bg-white dark:bg-dark-700 border border-gray-300 dark:border-dark-600 rounded-lg flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-primary"
+                  onClick={() => {
+                    setIsOpen(!isOpen);
+                    if (!isOpen) {
+                      updatePosition();
+                    }
+                  }}
+                >
+                  <span className="text-gray-700 dark:text-gray-300 text-sm">
+                    {selectedOption ? selectedOption.label : placeholder}
+                  </span>
+                  <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-gray-500 text-xs`}></i>
+                </button>
+              </div>
+              
+              {isOpen && (
+                <div
+                  ref={optionsRef}
+                  className="fixed z-[1000] bg-white dark:bg-dark-700 border border-gray-300 dark:border-dark-600 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+                  style={{
+                    top: `${position.top}px`,
+                    left: `${position.left}px`,
+                    width: `${position.width}px`
+                  }}
+                >
+                  {options.map((option) => (
+                    <div
+                      key={option.value}
+                      className={`px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-600 text-sm ${
+                        value === option.value ? 'bg-primary-100 dark:bg-primary-900/30 text-primary dark:text-primary-400' : 'dark:text-white'
+                      }`}
+                      onClick={() => handleSelect(option.value)}
+                    >
+                      {option.label}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        };
+
+        const AllHistory = ({ sleepHistory, clearHistory, deleteRecord, startEditRecord, onClose, onShowCalendar }) => {
+          const [sortBy, setSortBy] = useState('date-desc');
+          const [durationFilter, setDurationFilter] = useState('all');
+          const [timeFilter, setTimeFilter] = useState('all');
+          const [filteredHistory, setFilteredHistory] = useState(sleepHistory);
+
+          const formatDate = (date) => {
+            return date.toLocaleDateString('ru-RU', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            });
+          };
+
+          // Опции для фильтров
+          const sortOptions = [
+            { value: 'date-desc', label: 'Дата (новые сначала)' },
+            { value: 'date-asc', label: 'Дата (старые сначала)' },
+          ];
+
+          const durationOptions = [
+            { value: 'all', label: 'Все записи' },
+            { value: 'short', label: 'Короткий сон (<6ч)' },
+            { value: 'normal', label: 'Нормальный сон (6-9ч)' },
+            { value: 'long', label: 'Длинный сон (>9ч)' }
+          ];
+
+          const timeOptions = [
+            { value: 'all', label: 'Все время' },
+            { value: 'day', label: 'Дневной сон (6:00-18:00)' },
+            { value: 'evening', label: 'Вечерний сон (18:00-24:00)' },
+            { value: 'night', label: 'Ночной сон (после 24:00)' }
+          ];
+
+          // Фильтрация и сортировка записей
+          useEffect(() => {
+            let result = [...sleepHistory];
+
+            // Фильтрация по длительности
+            if (durationFilter !== 'all') {
+              result = result.filter(record => {
+                const hours = record.durationInMinutes / 60;
+                switch (durationFilter) {
+                  case 'short': return hours < 6;
+                  case 'normal': return hours >= 6 && hours <= 9;
+                  case 'long': return hours > 9;
+                  default: return true;
+                }
+              });
+            }
+
+            // Фильтрация по времени
+            if (timeFilter !== 'all') {
+              result = result.filter(record => {
+                const sleepTime = new Date(record.sleepTime);
+                const sleepHours = sleepTime.getHours();
+                
+                switch (timeFilter) {
+                  case 'day': return sleepHours >= 6 && sleepHours < 18;
+                  case 'evening': return sleepHours >= 18 && sleepHours < 24;
+                  case 'night': return sleepHours >= 0 && sleepHours < 6;
+                  default: return true;
+                }
+              });
+            }
+
+            // Сортировка
+            result.sort((a, b) => {
+              switch (sortBy) {
+                case 'date-desc':
+                  return new Date(b.sleepTime) - new Date(a.sleepTime);
+                case 'date-asc':
+                  return new Date(a.sleepTime) - new Date(b.sleepTime);
+                default:
+                  return new Date(b.sleepTime) - new Date(a.sleepTime);
+              }
+            });
+
+            setFilteredHistory(result);
+          }, [sleepHistory, sortBy, durationFilter, timeFilter]);
+
+          return (
+            <div className="sleep-history-fullscreen">
+              <div className="close-fullscreen dark:text-white" onClick={onClose}>
+                <i className="fas fa-times text-2xl"></i>
+              </div>
+              
+              <div className="history-header flex-col items-start mb-6">
+                <h2 className="text-2xl font-bold text-gray-800 dark:text-white">
+                  История
+                </h2>
+                {sleepHistory.length > 0 && (
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Общее количество: {sleepHistory.length}
+                  </p>
+                )}
+              </div>
+              
+              {sleepHistory.length > 0 && (
+                <>
+                  <button 
+                    onClick={clearHistory}
+                    className="bg-red-100 mb-3 w-full dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-700 dark:text-red-300 font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center"
+                  >
+                    <i className="fas fa-trash-alt mr-2"></i> Очистить всё
+                  </button>
+                  <button 
+                    onClick={onShowCalendar}
+                    className="flex-1 w-full mb-6 bg-primary text-white font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center"
+                  >
+                    <i className="fas fa-calendar-alt mr-2"></i> Календарь
+                  </button>
+                </>
+              )}
+
+              {/* Фильтры */}
+              {sleepHistory.length > 0 && (
+                <div className={`bg-white dark:bg-dark-700 rounded-xl p-4 ${(durationFilter !== 'all' || timeFilter !== 'all') ? '' : 'mb-4'} space-y-3`}>
+                  <h3 className="font-semibold text-gray-800 dark:text-white mb-2">Фильтры</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Сортировка
+                      </label>
+                      <CustomSelect
+                        options={sortOptions}
+                        value={sortBy}
+                        onChange={setSortBy}
+                        placeholder="Выберите сортировку"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Длительность сна
+                      </label>
+                      <CustomSelect
+                        options={durationOptions}
+                        value={durationFilter}
+                        onChange={setDurationFilter}
+                        placeholder="Фильтр по длительности"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Время сна
+                      </label>
+                      <CustomSelect
+                        options={timeOptions}
+                        value={timeFilter}
+                        onChange={setTimeFilter}
+                        placeholder="Фильтр по времени"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Кнопки сброса фильтров */}
+                  {(sortBy !== 'date-desc' || durationFilter !== 'all' || timeFilter !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setSortBy('date-desc');
+                        setDurationFilter('all');
+                        setTimeFilter('all');
+                      }}
+                      className="flex flex-1 items-center justify-center w-full rounded-xl py-3 px-4 bg-primary dark:text-white text-sm font-bold"
+                    >
+                      <i className="fas fa-times mr-1 text-lg"></i> Сбросить все фильтры
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <div className={`space-y-4 ${(durationFilter !== 'all' || timeFilter !== 'all') ? 'flex flex-col items-center w-full' : ''}`}>
+                {(durationFilter !== 'all' || timeFilter !== 'all') && (
+                    <div className="w-fit text-gray-600 dark:text-white bg-primary p-2 rounded-xl mt-3">
+                        Отфильтровано: {filteredHistory.length}/{sleepHistory.length}
+                    </div>
+                )}
+                {filteredHistory.map((record) => (
+                  <SwipeableCard
+                    key={record.id}
+                    className="bg-white dark:bg-dark-700 rounded-xl overflow-hidden"
+                    onSwipeLeft={() => deleteRecord(record.id)}
+                    onSwipeRight={() => startEditRecord(record)}
+                  >
+                    <div className="p-4 border-b border-gray-100 dark:border-dark-600">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                          {formatDate(record.sleepTime)}
+                        </span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                          {record.duration}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-3">
+                            <i className="fas fa-moon text-blue-500 dark:text-blue-400"></i>
+                          </div>
+                          <div>
+                            <div className="text-lg font-semibold text-gray-800 dark:text-white">
+                              {record.sleepTimeFormatted}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Время сна
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mr-3">
+                            <i className="fas fa-sun text-amber-500 dark:text-amber-400"></i>
+                          </div>
+                          <div>
+                            <div className="text-lg font-semibold text-gray-800 dark:text-white">
+                              {record.wakeTimeFormatted}
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              Время пробуждения
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="px-4 py-3 bg-gray-50 dark:bg-dark-600">
+                      <div className="text-xs text-center text-gray-500 dark:text-gray-400">
+                        Свайп вправо для редактирования, влево для удаления
+                      </div>
+                    </div>
+                  </SwipeableCard>
+                ))}
+              </div>
+              
+              {sleepHistory.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-dark-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-bed text-gray-400 dark:text-gray-500 text-2xl"></i>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    История пуста
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Записей о сне пока нет
+                  </p>
+                  <button 
+                    onClick={onShowCalendar}
+                    className="mt-4 bg-primary hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-xl transition duration-300"
+                  >
+                    <i className="fas fa-calendar-alt mr-2"></i> Перейти к календарю
+                  </button>
+                </div>
+              )}
+
+              {sleepHistory.length > 0 && filteredHistory.length === 0 && (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-dark-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-filter text-gray-400 dark:text-gray-500 text-2xl"></i>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Нет подходящих записей
+                  </h3>
+                  <p className="text-gray-500 dark:text-gray-400">
+                    Попробуйте изменить параметры фильтрации
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSortBy('date-desc');
+                      setDurationFilter('all');
+                      setTimeFilter('all');
+                    }}
+                    className="mt-4 bg-primary hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-xl transition duration-300"
+                  >
+                    <i className="fas fa-times mr-2"></i> Сбросить фильтры
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Компонент для вкладки истории сна
+        const SleepHistoryTab = ({ sleepHistory, clearHistory, deleteRecord, startEditRecord, onClose, onShowList }) => {
+            const [selectedDate, setSelectedDate] = useState(new Date());
+            const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+            const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+            const [calendarView, setCalendarView] = useState('week'); // 'month' или 'week'
+            const [currentWeek, setCurrentWeek] = useState(0); // текущая неделя относительно текущей
+            
+            useEffect(() => {
+                if (calendarView == 'week') {
+                    syncMonthFromWeek(currentWeek);
+                }
+            }, [currentWeek, calendarView]);
+
+
+            const syncMonthFromWeek = (weekOffset = 0) => {
+                const { start: weekStart } = getWeekRange(weekOffset);
+                setCurrentMonth(weekStart.getMonth());
+                setCurrentYear(weekStart.getFullYear());
+            };
+
+            const getWeekNumberForDate = (date) => {
+                const today = new Date();
+                const targetDate = new Date(date);
+                targetDate.setHours(0, 0, 0, 0);
+                today.setHours(0, 0, 0, 0);
+                
+                // Вычисляем разницу в неделях
+                const diffTime = targetDate - today;
+                const diffWeeks = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000));
+                return diffWeeks;
+            };
+
+            // Функция для получения номера недели начала месяца
+            const getWeekNumberForMonthStart = (month, year) => {
+                const monthStart = new Date(year, month, 1);
+                return getWeekNumberForDate(monthStart);
+            };
+
+            // Функция для проверки, находится ли дата в текущем месяце
+            const isDateInCurrentMonth = (date, month, year) => {
+                return date.getMonth() === month && date.getFullYear() === year;
+            };
+
+            // Функция для синхронизации недели при переключении вида
+            const syncWeekFromMonth = (month, year) => {
+                const today = new Date();
+                const targetDate = new Date(year, month, 15); // середина месяца для расчета недели
+                const weekDiff = Math.floor((targetDate - today) / (7 * 24 * 60 * 60 * 1000));
+                setCurrentWeek(weekDiff);
+            };
+
+            const getWeekRange = (weekOffset = 0) => {
+                const now = new Date();
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1) + (weekOffset * 7));
+                startOfWeek.setHours(0, 0, 0, 0);
+                
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                endOfWeek.setHours(23, 59, 59, 999);
+                
+                return { start: startOfWeek, end: endOfWeek };
+            };
+
+            const getRecordsForDate = (date) => {
+                return sleepHistory.filter(record => {
+                    const recordDate = new Date(record.sleepTime);
+                    return recordDate.toDateString() === date.toDateString();
+                });
+            };
+            
+            // Получить все даты, в которые есть записи
+            const getRecordDates = () => {
+                return sleepHistory.map(record => {
+                    const date = new Date(record.sleepTime);
+                    date.setHours(0, 0, 0, 0);
+                    return date.getTime();
+                });
+            };
+            
+            const recordDates = getRecordDates();
+            const selectedRecords = getRecordsForDate(selectedDate);
+            
+            // Генерация календаря
+            const generateCalendar = () => {
+                if (calendarView === 'month') {
+                    // Логика для месячного календаря
+                    const firstDay = new Date(currentYear, currentMonth, 1);
+                    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+                    const daysInMonth = lastDay.getDate();
+                    const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
+                    
+                    const prevMonth = new Date(currentYear, currentMonth - 1, 1);
+                    const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
+                    
+                    const calendar = [];
+                    const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+                    
+                    // Добавляем заголовки дней недели
+                    weekdays.forEach(day => {
+                        calendar.push(
+                            <div key={`header-${day}`} className="calendar-day">
+                                {day}
+                            </div>
+                        );
+                    });
+                    
+                    // Добавляем дни из предыдущего месяца
+                    for (let i = startingDay - 1; i >= 0; i--) {
+                        const date = daysInPrevMonth - i;
+                        const fullDate = new Date(prevMonth.getFullYear(), prevMonth.getMonth(), date);
+                        const hasRecord = recordDates.includes(fullDate.getTime());
+                        
+                        calendar.push(
+                            <div
+                                key={`prev-${date}`}
+                                className={`calendar-date other-month ${hasRecord ? 'has-record' : ''}`}
+                                onClick={() => {
+                                    setCurrentMonth(prevMonth.getMonth());
+                                    setCurrentYear(prevMonth.getFullYear());
+                                    setSelectedDate(fullDate);
+                                    if (calendarView === 'week') {
+                                        syncWeekFromMonth(prevMonth.getMonth(), prevMonth.getFullYear());
+                                    }
+                                }}
+                            >
+                                {date}
+                            </div>
+                        );
+                    }
+                    
+                    // Добавляем дни текущего месяца
+                    for (let i = 1; i <= daysInMonth; i++) {
+                        const fullDate = new Date(currentYear, currentMonth, i);
+                        const isActive = fullDate.toDateString() === selectedDate.toDateString();
+                        const hasRecord = recordDates.includes(fullDate.getTime());
+                        
+                        calendar.push(
+                            <div
+                                key={`current-${i}`}
+                                className={`calendar-date ${isActive ? 'active' : 'dark:text-white'} ${hasRecord ? 'has-record' : ''}`}
+                                onClick={() => {
+                                    setSelectedDate(fullDate);
+                                    if (calendarView === 'week') {
+                                        // При клике на дату в месячном виде, переключаемся на недельный
+                                        // и синхронизируем неделю
+                                        const today = new Date();
+                                        const weekDiff = Math.floor((fullDate - today) / (7 * 24 * 60 * 60 * 1000));
+                                        setCurrentWeek(weekDiff);
+                                        setCalendarView('week');
+                                    }
+                                }}
+                            >
+                                {i}
+                            </div>
+                        );
+                    }
+                    
+                    // Добавляем дни следующего месяца
+                    const totalCells = 42; // 6 недель * 7 дней
+                    const remainingCells = totalCells - (startingDay + daysInMonth);
+                    
+                    const nextMonth = new Date(currentYear, currentMonth + 1, 1);
+                    for (let i = 1; i <= remainingCells; i++) {
+                        const fullDate = new Date(nextMonth.getFullYear(), nextMonth.getMonth(), i);
+                        const hasRecord = recordDates.includes(fullDate.getTime());
+                        
+                        calendar.push(
+                            <div
+                                key={`next-${i}`}
+                                className={`calendar-date other-month ${hasRecord ? 'has-record' : ''}`}
+                                onClick={() => {
+                                    setCurrentMonth(nextMonth.getMonth());
+                                    setCurrentYear(nextMonth.getFullYear());
+                                    setSelectedDate(fullDate);
+                                    if (calendarView === 'week') {
+                                        syncWeekFromMonth(nextMonth.getMonth(), nextMonth.getFullYear());
+                                    }
+                                }}
+                            >
+                                {i}
+                            </div>
+                        );
+                    }
+                    
+                    return calendar;
+                } else {
+                    // Логика для недельного календаря
+                    const { start: weekStart } = getWeekRange(currentWeek);
+                    const calendar = [];
+                    const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+                    
+                    // Добавляем заголовки дней недели
+                    weekdays.forEach(day => {
+                        calendar.push(
+                            <div key={`header-${day}`} className="calendar-day">
+                                {day}
+                            </div>
+                        );
+                    });
+                    
+                    // Добавляем дни недели
+                    for (let i = 0; i < 7; i++) {
+                        const currentDate = new Date(weekStart);
+                        currentDate.setDate(weekStart.getDate() + i);
+                        
+                        const isActive = currentDate.toDateString() === selectedDate.toDateString();
+                        const hasRecord = recordDates.includes(currentDate.getTime());
+                        const isCurrentMonth = currentDate.getMonth() === currentMonth;
+                        
+                        calendar.push(
+                            <div
+                                key={`week-${i}`}
+                                className={`calendar-date ${isActive ? 'active' : 'dark:text-white'} ${hasRecord ? 'has-record' : ''} ${!isCurrentMonth ? 'other-month' : ''}`}
+                                onClick={() => setSelectedDate(currentDate)}
+                            >
+                                {currentDate.getDate()}
+                            </div>
+                        );
+                    }
+                    
+                    return calendar;
+                }
+            };
+
+            const navigateWeek = (direction) => {
+                setCurrentWeek(prev => prev + direction);
+            };
+
+            // Навигация по месяцам
+            const navigateMonth = (direction) => {
+                setCurrentMonth(prev => {
+                    let newMonth = prev + direction;
+                    let newYear = currentYear;
+                    
+                    if (newMonth < 0) {
+                        newMonth = 11;
+                        newYear--;
+                    } else if (newMonth > 11) {
+                        newMonth = 0;
+                        newYear++;
+                    }
+                    
+                    setCurrentYear(newYear);
+
+                    if (calendarView === 'week') {
+                        syncWeekFromMonth(newMonth, newYear);
+                    }
+
+                    return newMonth;
+                });
+            };
+            
+            const handleViewChange = (newView) => {
+                if (newView === 'week' && calendarView === 'month') {
+                    // При переходе с месяца на неделю
+                    const today = new Date();
+                    
+                    if (isDateInCurrentMonth(today, currentMonth, currentYear)) {
+                        // Если сегодняшняя дата в текущем месяце - показываем текущую неделю
+                        setCurrentWeek(0);
+                    } else {
+                        // Если сегодня не в этом месяце - показываем первую неделю месяца
+                        const weekNumber = getWeekNumberForMonthStart(currentMonth, currentYear);
+                        setCurrentWeek(weekNumber);
+                    }
+                } else if (newView === 'month' && calendarView === 'week') {
+                    // При переходе с недели на месяц - синхронизируем месяц
+                    syncMonthFromWeek(currentWeek);
+                }
+                setCalendarView(newView);
+            };
+
+            // Форматирование даты
+            const formatDate = (date) => {
+                return date.toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+            };
+            
+            const getPeriodDisplay = () => {
+                if (calendarView === 'month') {
+                    return new Date(currentYear, currentMonth).toLocaleDateString('ru-RU', {
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                } else {
+                    const { start: weekStart, end: weekEnd } = getWeekRange(currentWeek);
+                    return `${weekStart.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} - ${weekEnd.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`;
+                }
+            };
+            
+            return (
+                <div className="sleep-history-fullscreen">
+                    <div className="close-fullscreen dark:text-white" onClick={onClose}>
+                        <i className="fas fa-times text-2xl"></i>
+                    </div>
+                    
+                    <div className="history-header flex-col items-start">
+                        <h2 className="text-2xl mb-2 font-bold text-gray-800 dark:text-white">
+                            Календарь
+                        </h2>
+                        <button 
+                            onClick={onShowList}
+                            className="bg-primary mb-1 text-center w-full text-white font-bold py-2 px-4 rounded-xl transition duration-300 flex items-center"
+                        >
+                            <i className="fas fa-list mr-2"></i> Список
+                        </button>
+                    </div>
+
+                    <div className="flex mb-4 bg-gray-100 dark:bg-dark-700 rounded-lg p-1">
+                        <button
+                            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                                calendarView === 'month' 
+                                    ? 'bg-white dark:bg-dark-600 text-primary dark:text-white shadow-sm' 
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'
+                            }`}
+                            onClick={() => handleViewChange('month')}
+                        >
+                            Месяц
+                        </button>
+                        <button
+                            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                                calendarView === 'week' 
+                                    ? 'bg-white dark:bg-dark-600 text-primary dark:text-white shadow-sm' 
+                                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'
+                            }`}
+                            onClick={() => handleViewChange('week')}
+                        >
+                            Неделя
+                        </button>
+                    </div>
+                    
+                    {/* Календарь */}
+                    <div className="calendar-container">
+                        <div className="calendar-header">
+                            <button 
+                                onClick={() => calendarView === 'month' ? navigateMonth(-1) : navigateWeek(-1)}
+                                className="p-2 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-dark-600"
+                            >
+                                <i className="fas fa-chevron-left"></i>
+                            </button>
+                            
+                            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                                {getPeriodDisplay()}
+                            </h3>
+                            
+                            <button 
+                                onClick={() => calendarView === 'month' ? navigateMonth(1) : navigateWeek(1)}
+                                className="p-2 dark:text-white rounded-lg hover:bg-gray-100 dark:hover:bg-dark-600"
+                            >
+                                <i className="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                        
+                        <div className="calendar-grid">
+                            {generateCalendar()}
+                        </div>
+                    </div>
+                                        
+                    {/* Детали сна для выбранной даты */}
+                    <div className="sleep-details mt-3">
+                        <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
+                            {formatDate(selectedDate)}
+                        </h3>
+                        
+                        {selectedRecords.length === 0 ? (
+                            <div className="text-center py-8">
+                                <i className="fas fa-bed text-4xl text-gray-300 dark:text-dark-600 mb-3"></i>
+                                <p className="text-gray-500 dark:text-gray-400">Записей на эту дату нет</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Статистика дня */}
+                                <div className="sleep-stats">
+                                    <div className="stat-item">
+                                        <div className="stat-value">{selectedRecords.length}</div>
+                                        <div className="stat-label">Записей</div>
+                                    </div>
+                                    
+                                    <div className="stat-item">
+                                        <div className="stat-value">
+                                            {Math.round(selectedRecords.reduce((sum, record) => sum + record.durationInMinutes, 0) / 60)}ч
+                                        </div>
+                                        <div className="stat-label">Всего сна</div>
+                                    </div>
+                                </div>
+                                
+                                {/* Список записей */}
+                                <div className="space-y-3">
+                                    {selectedRecords.map((record) => (
+                                        <SwipeableCard
+                                            key={record.id}
+                                            className="bg-white dark:bg-dark-700 border border-gray-100 dark:border-dark-600 rounded-xl p-4"
+                                            onSwipeLeft={() => deleteRecord(record.id)}
+                                            onSwipeRight={() => startEditRecord(record)}
+                                        >
+                                            <div className="p-4 border-b border-gray-100 dark:border-dark-600">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                        {record.duration}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center">
+                                                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mr-3">
+                                                            <i className="fas fa-moon text-blue-500 dark:text-blue-400"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-lg font-semibold text-gray-800 dark:text-white">
+                                                                {record.sleepTimeFormatted}
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                Время сна
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center">
+                                                        <div className="w-10 h-10 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mr-3">
+                                                            <i className="fas fa-sun text-amber-500 dark:text-amber-400"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-lg font-semibold text-gray-800 dark:text-white">
+                                                                {record.wakeTimeFormatted}
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                                Время пробуждения
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="px-4 py-3 bg-gray-50 dark:bg-dark-600 rounded-lg">
+                                                <div className="text-xs text-center text-gray-500 dark:text-gray-400">
+                                                    Свайп вправо для редактирования, влево для удаления
+                                                </div>
+                                            </div>
+                                        </SwipeableCard>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // Компонент для док-бара
+        const DockBar = ({ activeTab, onTabChange }) => {
+            const tabs = [
+                { id: 'sleep', label: 'Сон', icon: 'fa-bed' },
+                { id: 'stats', label: 'Статистика', icon: 'fa-chart-line' },
+                { id: 'settings', label: 'Настройки', icon: 'fa-cog' }
+            ];
+
+            return (
+                <div className="dock-bar">
+                    {tabs.map(tab => (
+                        <div 
+                            key={tab.id}
+                            className={`dock-item ${activeTab === tab.id ? 'active' : ''}`}
+                            onClick={() => onTabChange(tab.id)}
+                        >
+                            <i className={`fas ${tab.icon} dock-icon ${activeTab === tab.id ? 'dark:text-white text-primary' : 'text-gray-500'}`}></i>
+                            <span className={`dock-label ${activeTab === tab.id ? 'dark:text-white text-primary' : 'text-gray-500'}`}>{tab.label}</span>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const SleepTracker = () => {
+            const [sleepTime, setSleepTime] = useState(null);
+            const [wakeTime, setWakeTime] = useState(null);
+            const [sleepHistory, setSleepHistory] = useState([]);
+            const [currentStatus, setCurrentStatus] = useState('awake');
+            const [darkMode, setDarkMode] = useState(false);
+            const [editingRecord, setEditingRecord] = useState(null);
+            const [editSleepTime, setEditSleepTime] = useState('');
+            const [editWakeTime, setEditWakeTime] = useState('');
+            const [editDate, setEditDate] = useState('');
+            const [alert, setAlert] = useState(null);
+            const [activeTab, setActiveTab] = useState('sleep'); // sleep, stats, settings
+            const [showFullscreenHistory, setShowFullscreenHistory] = useState(false);
+            const [historyView, setHistoryView] = useState('list'); // 'list' или 'calendar'
+            
+            const handleImportHistory = (importedHistory) => {
+                setSleepHistory(importedHistory);
+            };
+
+            const handleShowCalendar = () => {
+                setHistoryView('calendar');
+            };
+
+            const handleShowList = () => {
+                setHistoryView('list');
+            };
+
+            const parseSleepHistory = (savedHistory) => {
+                if (!savedHistory) return [];
+                
+                return savedHistory.map(record => ({
+                    ...record,
+                    sleepTime: new Date(record.sleepTime),
+                    wakeTime: new Date(record.wakeTime)
+                }));
+            };
+            
+            // Загрузка данных из localStorage при загрузке компонента
+            useEffect(() => {
+                const savedSleepHistory = localStorage.getItem('sleepHistory');
+                const savedSleepTime = localStorage.getItem('sleepTime');
+                const savedWakeTime = localStorage.getItem('wakeTime');
+                const savedStatus = localStorage.getItem('currentStatus');
+                const savedDarkMode = localStorage.getItem('darkMode');
+
+                if (savedSleepHistory) {
+                    try {
+                        const parsedHistory = JSON.parse(savedSleepHistory);
+                        setSleepHistory(parseSleepHistory(parsedHistory));
+                    } catch (e) {
+                        console.error('Error parsing sleep history:', e);
+                        setSleepHistory([]);
+                    }
+                }
+
+                if (savedStatus) {
+                    const status = JSON.parse(savedStatus);
+                    setCurrentStatus(status);
+                }
+
+                if (savedSleepTime) {
+                    try {
+                        const status = JSON.parse(savedStatus);
+                        if (status != 'awake') {
+                            const sleepTimeDate = new Date(JSON.parse(savedSleepTime));
+                            setSleepTime(sleepTimeDate);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing sleep time:', e);
+                    }
+                }
+
+                if (savedDarkMode) {
+                    setDarkMode(JSON.parse(savedDarkMode));
+                    if (JSON.parse(savedDarkMode)) {
+                        document.documentElement.classList.add('dark');
+                        document.body.classList.add('bg-dark-900');
+                        document.body.classList.remove('bg-light-800');
+                    } else {
+                        document.body.classList.add('bg-light-800');
+                        document.body.classList.remove('bg-dark-900');
+                    }
+                }
+            }, []);
+
+            // Сохранение данных в localStorage при изменении
+            useEffect(() => {
+                localStorage.setItem('sleepHistory', JSON.stringify(sleepHistory));
+                localStorage.setItem('sleepTime', JSON.stringify(sleepTime));
+                localStorage.setItem('wakeTime', JSON.stringify(wakeTime));
+                localStorage.setItem('currentStatus', JSON.stringify(currentStatus));
+                localStorage.setItem('darkMode', JSON.stringify(darkMode));
+            }, [sleepHistory, sleepTime, wakeTime, currentStatus, darkMode]);
+
+            const toggleDarkMode = () => {
+                const newDarkMode = !darkMode;
+                setDarkMode(newDarkMode);
+                
+                if (newDarkMode) {
+                    document.documentElement.classList.add('dark');
+                    document.body.classList.add('bg-dark-900');
+                    document.body.classList.remove('bg-light-800');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.body.classList.add('bg-light-800');
+                    document.body.classList.remove('bg-dark-900');
+                }
+            };
+
+            const showAlert = (message, type = 'error') => {
+                setAlert({ message, type });
+            };
+
+            const handleSleep = () => {
+                const now = new Date();
+                setSleepTime(now);
+                setCurrentStatus('sleeping');
+            };
+
+            const handleWake = () => {
+                const now = new Date();
+                setWakeTime(now);
+
+                if (sleepTime) {
+                    addSleepRecord(sleepTime, now);
+                    
+                    // Через 5 секунд сбросим оба времени одновременно
+                    setTimeout(() => {
+                        setSleepTime(null);
+                        setWakeTime(null);
+                    }, 5000);
+                }
+            };
+            
+            const addSleepRecord = (sleepTime, wakeTime) => {
+                const duration = calculateDuration(sleepTime, wakeTime);
+                const durationInMinutes = Math.floor((wakeTime - sleepTime) / (1000 * 60));
+                
+                // Форматируем время сна и пробуждения с датами
+                const sleepDateStr = sleepTime.toLocaleDateString('ru-RU');
+                const wakeDateStr = wakeTime.toLocaleDateString('ru-RU');
+                
+                const sleepTimeFormatted = sleepTime.toLocaleTimeString('ru-RU', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                const wakeTimeFormatted = wakeTime.toLocaleTimeString('ru-RU', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                // Используем новую функцию getDateLabel
+                const dateLabel = getDateLabel(sleepTime);
+
+                const newRecord = {
+                    id: Date.now(), // Уникальный ID для каждой записи
+                    dateLabel: dateLabel,
+                    sleepTimeFormatted: sleepTimeFormatted,
+                    wakeTimeFormatted: wakeTimeFormatted,
+                    sleepDateStr: sleepDateStr,
+                    wakeDateStr: wakeDateStr,
+                    duration: duration,
+                    durationInMinutes: durationInMinutes,
+                    sleepTime: sleepTime,
+                    wakeTime: wakeTime
+                };
+
+                setSleepHistory(prev => [newRecord, ...prev]);
+                setCurrentStatus('awake');
+            };
+
+            const calculateDuration = (start, end) => {
+                const diffMs = end - start;
+                const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                return `${hours} ч ${minutes} мин`;
+            };
+
+            const formatDate = (date) => {
+                if (!date) return '';
+                return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            };
+
+            const clearHistory = () => {
+                setSleepHistory([]);
+                setSleepTime(null);
+                setWakeTime(null);
+                setCurrentStatus('awake');
+                localStorage.removeItem('sleepHistory');
+                localStorage.removeItem('sleepTime');
+                localStorage.removeItem('wakeTime');
+                localStorage.removeItem('currentStatus');
+            };
+
+            const deleteRecord = (id) => {
+                setSleepHistory(prev => prev.filter(record => record.id !== id));
+            };
+
+            const startEditRecord = (record) => {
+                setEditingRecord(record);
+                // Подставляем данные из карточки в поля редактирования
+                setEditSleepTime(record.sleepTime.toLocaleTimeString('ru-RU', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                }));
+                setEditWakeTime(record.wakeTime.toLocaleTimeString('ru-RU', { 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false 
+                }));
+                // Устанавливаем дату из карточки
+                const sleepDate = new Date(record.sleepTime);
+                const year = sleepDate.getFullYear();
+                const month = String(sleepDate.getMonth() + 1).padStart(2, '0');
+                const day = String(sleepDate.getDate()).padStart(2, '0');
+                const formattedDate = `${year}-${month}-${day}`;
+                
+                setEditDate(formattedDate);
+            };
+
+            const saveEditRecord = () => {
+                if (!editingRecord) return;
+
+                const sleepTimeParts = editSleepTime.split(':');
+                const wakeTimeParts = editWakeTime.split(':');
+                
+                if (sleepTimeParts.length !== 2 || wakeTimeParts.length !== 2) {
+                    showAlert('Пожалуйста, введите время в формате ЧЧ:MM');
+                    return;
+                }
+
+                const sleepHours = parseInt(sleepTimeParts[0]);
+                const sleepMinutes = parseInt(sleepTimeParts[1]);
+                const wakeHours = parseInt(wakeTimeParts[0]);
+                const wakeMinutes = parseInt(wakeTimeParts[1]);
+
+                if (isNaN(sleepHours) || isNaN(sleepMinutes) || isNaN(wakeHours) || isNaN(wakeMinutes)) {
+                    showAlert('Пожалуйста, введите корректное время');
+                    return;
+                }
+
+                // Создаем новые даты с учетом выбранной даты
+                const newSleepTime = new Date(editDate + 'T' + editSleepTime + ':00');
+                const newWakeTime = new Date(editDate + 'T' + editWakeTime + ':00');
+
+                if (newWakeTime <= newSleepTime) {
+                    showAlert('Время пробуждения должно быть позже времени сна');
+                    return;
+                }
+                
+
+                setSleepHistory(prev => 
+                    prev.map(record => 
+                        record.id === editingRecord.id 
+                            ? {...record, 
+                               sleepTime: newSleepTime,
+                               wakeTime: newWakeTime,
+                               sleepTimeFormatted: newSleepTime.toLocaleTimeString('ru-RU', { 
+                                   hour: '2-digit', 
+                                   minute: '2-digit' 
+                               }),
+                               wakeTimeFormatted: newWakeTime.toLocaleTimeString('ru-RU', { 
+                                   hour: '2-digit', 
+                                   minute: '2-digit' 
+                               }),
+                               sleepDateStr: newSleepTime.toLocaleDateString('ru-RU'),
+                               wakeDateStr: newWakeTime.toLocaleDateString('ru-RU'),
+                               duration: calculateDuration(newSleepTime, newWakeTime),
+                               durationInMinutes: Math.floor((newWakeTime - newSleepTime) / (1000 * 60)),
+                               // ФИКС: Обновляем dateLabel на основе новой даты
+                               dateLabel: getDateLabel(newSleepTime)
+                              }
+                            : record
+                    )
+                );
+                
+                setEditingRecord(null);
+                setEditSleepTime('');
+                setEditWakeTime('');
+                setEditDate('');
+            };
+
+            // Функция для получения метки даты (Сегодня/Вчера/дата)
+            const getDateLabel = (date) => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                
+                const recordDate = new Date(date);
+                recordDate.setHours(0, 0, 0, 0);
+                
+                if (recordDate.getTime() === today.getTime()) {
+                    return "Сегодня";
+                } else if (recordDate.getTime() === yesterday.getTime()) {
+                    return "Вчера";
+                } else {
+                    return recordDate.toLocaleDateString('ru-RU', { 
+                        day: 'numeric', 
+                        month: 'long' 
+                    });
+                }
+            };
+
+            return (
+                <div className="max-w-md mx-auto">
+                    <h1 className="text-3xl font-bold text-center text-gray-800 dark:text-white mb-2">
+                        Трекер сна
+                    </h1>
+                    <p className="text-center text-gray-600 dark:text-gray-400 mb-8">
+                        Отслеживайте свой сон и улучшайте его качество
+                    </p>
+                    
+                    {alert && (
+                        <Alert 
+                            message={alert.message} 
+                            type={alert.type} 
+                            onClose={() => setAlert(null)} 
+                        />
+                    )}
+                    
+                    {/* Док-бар */}
+                    <DockBar activeTab={activeTab} onTabChange={setActiveTab} />
+                    
+                    {/* Основной контент */}
+                    <div className="main-content">
+                        {/* Вкладка сна */}
+                        {activeTab === 'sleep' && (
+                            <div className="fade-in">
+                                <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 mb-4">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-200">
+                                            <i className="fas fa-moon text-primary mr-2"></i>Текущий статус
+                                        </h2>
+                                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${currentStatus === 'sleeping' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'}`}>
+                                            {currentStatus === 'sleeping' ? 'Спит' : 'Не спит'}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <i className="fas fa-bed text-primary dark:text-primary-400 mr-2"></i>
+                                                <span className="text-gray-700 dark:text-gray-300">Время сна:</span>
+                                            </div>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {sleepTime ? formatDate(sleepTime) : '--:--'}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center">
+                                                <i className="fas fa-sun text-amber-500 dark:text-amber-400 mr-2"></i>
+                                                <span className="text-gray-700 dark:text-gray-300">Время пробуждения:</span>
+                                            </div>
+                                            <span className="font-semibold text-gray-900 dark:text-white">
+                                                {wakeTime ? formatDate(wakeTime) : '--:--'}
+                                            </span>
+                                        </div>
+                                        
+                                        {sleepTime && wakeTime && (
+                                            <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-dark-600">
+                                                <div className="flex items-center">
+                                                    <i className="fas fa-clock text-gray-400 dark:text-gray-500 mr-2"></i>
+                                                    <span className="text-gray-700 dark:text-gray-300">Длительность сна:</span>
+                                                </div>
+                                                <span className="font-semibold text-dark dark:text-white">
+                                                    {calculateDuration(sleepTime, wakeTime)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="mt-8 flex flex-col space-y-3">
+                                        {currentStatus === 'awake' ? (
+                                            <button 
+                                                onClick={handleSleep}
+                                                className="bg-primary text-white outline-none font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center"
+                                            >
+                                                <i className="fas fa-moon mr-2"></i> Спать
+                                            </button>
+                                        ) : (
+                                            <button 
+                                                onClick={handleWake}
+                                                className="bg-green-500 text-white outline-none font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center"
+                                            >
+                                                <i className="fas fa-sun mr-2"></i> Проснуться
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {sleepHistory.length > 0 && (
+                                    <div className="bg-white dark:bg-dark-800 rounded-2xl p-6 mb-4">
+                                        <button 
+                                            onClick={() => setShowFullscreenHistory(true)}
+                                            className="w-full bg-primary hover:bg-primary-700 text-white font-bold py-3 px-4 rounded-xl transition duration-300 flex items-center justify-center"
+                                        >
+                                            <i className="fas fa-history mr-2"></i> Открыть историю сна
+                                        </button>
+                                    </div>
+                                )}
+                                
+                                {/* История сна */}
+                                {showFullscreenHistory && (
+                                    <>
+                                        {historyView === 'list' ? (
+                                            <AllHistory 
+                                                sleepHistory={sleepHistory} 
+                                                clearHistory={clearHistory}
+                                                deleteRecord={deleteRecord}
+                                                startEditRecord={startEditRecord}
+                                                onClose={() => setShowFullscreenHistory(false)}
+                                                onShowCalendar={handleShowCalendar}
+                                            />
+                                        ) : (
+                                            <SleepHistoryTab 
+                                                sleepHistory={sleepHistory} 
+                                                clearHistory={clearHistory}
+                                                deleteRecord={deleteRecord}
+                                                startEditRecord={startEditRecord}
+                                                onClose={() => {
+                                                    setShowFullscreenHistory(false);
+                                                    handleShowList();
+                                                }}
+                                                onShowList={handleShowList}
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        )}
+                        
+                        {/* Вкладка статистики */}
+                        {activeTab === 'stats' && (
+                            <StatsTab sleepHistory={sleepHistory} />
+                        )}
+                        
+                        {/* Вкладка настроек */}
+                        {activeTab === 'settings' && (
+                            <SettingsTab 
+                                darkMode={darkMode}
+                                onToggleDarkMode={toggleDarkMode}
+                                sleepHistory={sleepHistory}
+                                onImportHistory={handleImportHistory}
+                            />
+                        )}
+                    </div>
+                    
+                    {/* Модальное окно редактирования */}
+                    {editingRecord && (
+                        <div className="modal-overlay">
+                            <div className="modal-content">
+                                <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+                                    <i className="fas fa-edit text-primary mr-2"></i>Редактировать запись
+                                </h3>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                                        Дата
+                                    </label>
+                                    <input
+                                        type="date"
+                                        value={editDate}
+                                        onChange={(e) => setEditDate(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-dark-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-dark-700 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                                        Время сна (ЧЧ:ММ)
+                                    </label>
+                                    <input
+                                        type="time"
+                                        value={editSleepTime}
+                                        onChange={(e) => setEditSleepTime(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-dark-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-dark-700 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <div className="mb-6">
+                                    <label className="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2">
+                                        Время пробуждения (ЧЧ:ММ)
+                                    </label>
+                                    <input
+                                        type="time"
+                                        value={editWakeTime}
+                                        onChange={(e) => setEditWakeTime(e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 dark:border-dark-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary dark:bg-dark-700 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <div className="flex space-x-3">
+                                    <button
+                                        onClick={() => setEditingRecord(null)}
+                                        className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-dark-600 dark:hover:bg-dark-500 text-gray-800 dark:text-white font-bold py-2 px-4 rounded-lg transition duration-300"
+                                    >
+                                        Отмена
+                                    </button>
+                                    <button
+                                        onClick={saveEditRecord}
+                                        className="flex-1 bg-primary hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300"
+                                    >
+                                        Сохранить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<SleepTracker />);
+    </script>
+</body>
+</html>
