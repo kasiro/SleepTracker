@@ -2061,7 +2061,7 @@
             const getWeekRange = (weekOffset = 0) => {
                 const now = new Date();
                 const startOfWeek = new Date(now);
-                startOfWeek.setDate(now.getDate() - now.getDay() + (weekOffset * 7));
+                startOfWeek.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1) + (weekOffset * 7));
                 startOfWeek.setHours(0, 0, 0, 0);
                 
                 const endOfWeek = new Date(startOfWeek);
@@ -2097,13 +2097,13 @@
                     const firstDay = new Date(currentYear, currentMonth, 1);
                     const lastDay = new Date(currentYear, currentMonth + 1, 0);
                     const daysInMonth = lastDay.getDate();
-                    const startingDay = firstDay.getDay();
+                    const startingDay = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
                     
                     const prevMonth = new Date(currentYear, currentMonth - 1, 1);
                     const daysInPrevMonth = new Date(currentYear, currentMonth, 0).getDate();
                     
                     const calendar = [];
-                    const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+                    const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
                     
                     // Добавляем заголовки дней недели
                     weekdays.forEach(day => {
@@ -2197,7 +2197,7 @@
                     // Логика для недельного календаря
                     const { start: weekStart } = getWeekRange(currentWeek);
                     const calendar = [];
-                    const weekdays = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
+                    const weekdays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
                     
                     // Добавляем заголовки дней недели
                     weekdays.forEach(day => {

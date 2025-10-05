@@ -289,7 +289,7 @@
         
         .slider.round {
             border-radius: 34px;
-        }
+       }
         
         .slider.round:before {
             border-radius: 50%;
@@ -2729,12 +2729,6 @@
                 // Создаем новые даты с учетом выбранной даты
                 const newSleepTime = new Date(editDate + 'T' + editSleepTime + ':00');
                 const newWakeTime = new Date(editDate + 'T' + editWakeTime + ':00');
-
-                if (newWakeTime <= newSleepTime) {
-                    showAlert('Время пробуждения должно быть позже времени сна');
-                    return;
-                }
-                
 
                 setSleepHistory(prev => 
                     prev.map(record => 
