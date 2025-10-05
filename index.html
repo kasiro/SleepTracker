@@ -1092,7 +1092,7 @@
                 
                 return { hours, minutes, text: `${hours} ч ${minutes} мин` };
             };
-            
+
             const calculateBestDay = (records) => {
                 if (records.length === 0) return { duration: '0 ч 0 мин', date: 'Нет данных' };
                 
@@ -1100,12 +1100,9 @@
                     return record.durationInMinutes > best.durationInMinutes ? record : best;
                 }, { durationInMinutes: 0 });
                 
-                // Используем правильную функцию getDateLabel для отображения даты
-                const bestDateLabel = getDateLabel(bestRecord.sleepTime);
-                
                 return {
                     duration: bestRecord.duration,
-                    date: bestDateLabel
+                    date: bestRecord.dateLabel
                 };
             };
 
@@ -2782,6 +2779,7 @@
                 setEditWakeTime('');
                 setEditDate('');
             };
+
 
             // Функция для получения метки даты (Сегодня/Вчера/дата)
             const getDateLabel = (date) => {
