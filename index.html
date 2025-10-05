@@ -2726,9 +2726,28 @@
                     return;
                 }
 
-                // Создаем новые даты с учетом выбранной даты
-                const newSleepTime = new Date(editDate + 'T' + editSleepTime + ':00');
-                const newWakeTime = new Date(editDate + 'T' + editWakeTime + ':00');
+                // Создаем базовую дату из выбранной даты
+                const baseDate = new Date(editDate);
+                
+                // Создаем время сна на основе выбранной даты
+                const newSleepTime = new Date(baseDate);
+                newSleepTime.setHours(sleepHours, sleepMinutes, 0, 0);
+                
+                // Создаем время пробуждения
+                const newWakeTime = new Date(baseDate);
+                newWakeTime.setHours(wakeHours, wakeMinutes, 0, 0);
+                
+                // Если время пробуждения раньше времени сна (переход через полночь),
+                // добавляем один день к времени пробуждения
+                if (newWakeTime <= newSleepTime) {
+                    newWakeTime.setDate(newWakeTime.getDate() + 1);
+                }
+
+                // Проверяем, что время пробуждения действительно позже времени сна
+                if (newWakeTime <= newSleepTime) {
+                    showAlert('Время пробуждения должно быть позже времени сна');
+                    return;
+                }
 
                 setSleepHistory(prev => 
                     prev.map(record => 
@@ -2760,6 +2779,7 @@
                 setEditWakeTime('');
                 setEditDate('');
             };
+
 
             // Функция для получения метки даты (Сегодня/Вчера/дата)
             const getDateLabel = (date) => {
