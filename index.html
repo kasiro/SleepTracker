@@ -1092,7 +1092,7 @@
                 
                 return { hours, minutes, text: `${hours} ч ${minutes} мин` };
             };
-
+            
             const calculateBestDay = (records) => {
                 if (records.length === 0) return { duration: '0 ч 0 мин', date: 'Нет данных' };
                 
@@ -1100,9 +1100,12 @@
                     return record.durationInMinutes > best.durationInMinutes ? record : best;
                 }, { durationInMinutes: 0 });
                 
+                // Используем правильную функцию getDateLabel для отображения даты
+                const bestDateLabel = getDateLabel(bestRecord.sleepTime);
+                
                 return {
                     duration: bestRecord.duration,
-                    date: bestRecord.dateLabel
+                    date: bestDateLabel
                 };
             };
 
@@ -2780,7 +2783,6 @@
                 setEditDate('');
             };
 
-
             // Функция для получения метки даты (Сегодня/Вчера/дата)
             const getDateLabel = (date) => {
                 const today = new Date();
@@ -2792,9 +2794,14 @@
                 const recordDate = new Date(date);
                 recordDate.setHours(0, 0, 0, 0);
                 
-                if (recordDate.getTime() === today.getTime()) {
+                // Сравниваем timestamp для точного сравнения дат
+                const todayTime = today.getTime();
+                const yesterdayTime = yesterday.getTime();
+                const recordTime = recordDate.getTime();
+                
+                if (recordTime === todayTime) {
                     return "Сегодня";
-                } else if (recordDate.getTime() === yesterday.getTime()) {
+                } else if (recordTime === yesterdayTime) {
                     return "Вчера";
                 } else {
                     return recordDate.toLocaleDateString('ru-RU', { 
